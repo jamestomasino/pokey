@@ -19,7 +19,7 @@ def main():
         s.bind((HOST, PORT))
         logging.info('Socket bind complete')
         s.listen(10)
-        logging.info('Socket now listening')
+        logging.info('Socket now listening on port ' + str(PORT))
         while 1:
             conn, addr = s.accept()
             logging.info('Connected with ' + addr[0] + ':' + str(addr[1]))

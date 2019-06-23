@@ -29,41 +29,46 @@ def main():
         logging.error('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
 
     while inputs:
-        readable, writable, exceptional = select.select(
-            inputs, outputs, inputs)
-        for s in readable:
-            if s is server:
-                connection, client_address = s.accept()
-                connection.setblocking(0)
-                inputs.append(connection)
-                message_queues[connection] = Queue.Queue()
-            else:
-                data = s.recv(1024)
-                if data:
-                    message_queues[s].put(data)
-                    if s not in outputs:
-                        outputs.append(s)
+        try:
+            readable, writable, exceptional = select.select(
+                inputs, outputs, inputs)
+            for s in readable:
+                if s is server:
+                    connection, client_address = s.accept()
+                    connection.setblocking(0)
+                    inputs.append(connection)
+                    message_queues[connection] = Queue.Queue()
                 else:
-                    if s in outputs:
-                        outputs.remove(s)
-                    inputs.remove(s)
-                    s.close()
-                    del message_queues[s]
+                    data = s.recv(1024)
+                    if data:
+                        message_queues[s].put(data)
+                        if s not in outputs:
+                            outputs.append(s)
+                    else:
+                        if s in outputs:
+                            outputs.remove(s)
+                        inputs.remove(s)
+                        s.close()
+                        del message_queues[s]
 
-        for s in writable:
-            try:
-                next_msg = message_queues[s].get_nowait()
-            except Queue.Empty:
-                outputs.remove(s)
-            else:
-                s.send(next_msg)
+            for s in writable:
+                try:
+                    next_msg = message_queues[s].get_nowait()
+                except Queue.Empty:
+                    outputs.remove(s)
+                else:
+                    s.send(next_msg)
 
-        for s in exceptional:
-            inputs.remove(s)
-            if s in outputs:
-                outputs.remove(s)
-            s.close()
-            del message_queues[s]
+            for s in exceptional:
+                inputs.remove(s)
+                if s in outputs:
+                    outputs.remove(s)
+                s.close()
+                del message_queues[s]
+        except KeyboardInterrupt:
+            server.close()
+            logging.info('Shutting down socket connection.')
+            sys.exit(1)
 
 
 class SystemdHandler(logging.Handler):

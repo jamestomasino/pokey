@@ -69,7 +69,11 @@ def main():
                 except Queue.Empty:
                     outputs.remove(s)
                 else:
-                    s.send(next_msg)
+                    # This is an example string comparison against a message
+                    if (str(next_msg, 'utf-8') == 'test'):
+                        s.send(b'monkey\n')
+                    else:
+                        s.send(next_msg)
 
             for s in exceptional:
                 inputs.remove(s)

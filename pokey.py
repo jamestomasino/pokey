@@ -24,6 +24,7 @@ def main():
         server.listen(5)
         inputs = [server]
         outputs = []
+        data_queues = {}
         message_queues = {}
     except socket.error as msg:
         logging.error('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
@@ -38,10 +39,20 @@ def main():
                     connection.setblocking(0)
                     inputs.append(connection)
                     message_queues[connection] = Queue.Queue()
+                    data_queues[connection] = Queue.Queue()
                 else:
-                    data = s.recv(1024)
-                    if data:
-                        message_queues[s].put(data)
+                    incoming = s.recv(1024)
+                    if incoming:
+                        try:
+                            data = data_queues[s].get_nowait()
+                        except Queue.Empty:
+                            data = bytearray(b'')
+                        data.extend(incoming)
+                        if b'\n' in data:
+                            parts = data.split(b'\n')
+                            message_queues[s].put(parts[0])
+                            data = parts[1]
+                        data_queues[s].put(data)
                         if s not in outputs:
                             outputs.append(s)
                     else:
@@ -50,6 +61,7 @@ def main():
                         inputs.remove(s)
                         s.close()
                         del message_queues[s]
+                        del data_queues[s]
 
             for s in writable:
                 try:
